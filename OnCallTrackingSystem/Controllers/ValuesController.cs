@@ -77,9 +77,8 @@ namespace OnCallTrackingSystem.Controllers
 
             // Create a new string object to POST data to the Url.
 
-            var json = @"{""index"":[""logs-2019-10-04""],""ignore_unavailable"":true,""preference"":1570181335131}";
-            json = json + Environment.NewLine + @"{""size"":500,""sort"":[{""log_time"":{""order"":""desc"",""unmapped_type"":""boolean""}}],""query"":{""bool"":{""must"":[{""query_string"":{""query"":""app_name: chatops AND category: call_action AND call_action: *"",""analyze_wildcard"":true}},{""range"":{""log_time"":{""gte"":1569695400000,""lte"":1570300199999,""format"":""epoch_millis""}}}],""must_not"":[]}},""highlight"":{""pre_tags"":[""@kibana-highlighted-field@""],""post_tags"":[""@/kibana-highlighted-field@""],""fields"":{""*"":{}},""require_field_match"":false,""fragment_size"":2147483647},""_source"":{""excludes"":[]},""aggs"":{""2"":{""date_histogram"":{""field"":""log_time"",""interval"":""3h"",""time_zone"":""Asia/Kolkata"",""min_doc_count"":1}}},""stored_fields"":[""*""],""script_fields"":{},""docvalue_fields"":[""check_in"",""search_date"",""check_out"",""time_stamp"",""pickup_date"",""dropoff_date"",""log_time"",""@timestamp"",""Timestamp"",""start_time"",""lastrun"",""lastsync""]}" + Environment.NewLine;
-
+            var json = getJson();
+ 
             //var encoding = new ASCIIEncoding();
             var dataInBytes = Encoding.ASCII.GetBytes(json);
 
@@ -129,16 +128,14 @@ namespace OnCallTrackingSystem.Controllers
 
                     if (list[i].call_action == "initiated")
                     {
-                        init = 1;
-                        ack = 0;
+                        init = 1;                        
                     }
                     else if(list[i].call_action== "acknowledged")
-                    {
-                        init = 1;
+                    {                        
                         ack = 1;
                     }
                     
-                    mySqlCommand.CommandText = "Insert into EmpInitAckData values( '" + list[i].employee_id + "','" + init + "','" + ack + "','" + DateTime.Today.ToString("yyyy-MM-dd") + "')";
+                    mySqlCommand.CommandText = "Insert into EmpInitAckData(EmployeeId,init,ack,date) values( '" + list[i].employee_id + "','" + init + "','" + ack + "','" + DateTime.Today.ToString("yyyy-MM-dd") + "')";
                     try
                     {
                         mySqlCommand.ExecuteNonQuery();
@@ -159,6 +156,44 @@ namespace OnCallTrackingSystem.Controllers
 
 
             return Ok();
+        }
+
+        private string getJson()
+        {
+            string date = DateTime.Today.ToString("yyyy-MM-dd");
+            string gte = string.Empty;
+            string lte = string.Empty;
+
+
+
+
+            int currentHour = Convert.ToInt32(DateTime.Now.Hour);
+
+            if (currentHour > 6 && currentHour < 12)
+            {
+                gte = DateTime.Today.Date.AddHours(0.000000001).Subtract(new DateTime(1970, 1, 1)).TotalMilliseconds.ToString();
+                lte = DateTime.Today.Date.AddHours(6).Subtract(new DateTime(1970, 1, 1)).TotalMilliseconds.ToString();
+            }
+            else if (currentHour > 12 && currentHour < 18)
+            {
+                gte = DateTime.Today.Date.AddHours(6.000000001).Subtract(new DateTime(1970, 1, 1)).TotalMilliseconds.ToString();
+                lte = DateTime.Today.Date.AddHours(12).Subtract(new DateTime(1970, 1, 1)).TotalMilliseconds.ToString();
+            }
+            else if (currentHour > 18 && currentHour < 24)
+            {
+                gte = DateTime.Today.Date.AddHours(12.000000001).Subtract(new DateTime(1970, 1, 1)).TotalMilliseconds.ToString();
+                lte = DateTime.Today.Date.AddHours(18).Subtract(new DateTime(1970, 1, 1)).TotalMilliseconds.ToString();
+            }
+            else
+            {
+                gte = DateTime.Today.Date.AddHours(18.000000001).Subtract(new DateTime(1970, 1, 1)).TotalMilliseconds.ToString();
+                lte = DateTime.Today.Date.AddHours(24).Subtract(new DateTime(1970, 1, 1)).TotalMilliseconds.ToString();
+            }
+
+            var ApiRequestBody = @"{""index"":[""logs-" + date + @"""],""ignore_unavailable"":true}";
+            ApiRequestBody = ApiRequestBody + Environment.NewLine + @"{""size"":500,""sort"":[{""log_time"":{""order"":""desc"",""unmapped_type"":""boolean""}}],""query"":{""bool"":{""must"":[{""query_string"":{""query"":""app_name: chatops AND category: call_action AND call_action: *"",""analyze_wildcard"":true}},{""range"":{""log_time"":{""gte"":" + gte + @",""lte"":" + lte + @",""format"":""epoch_millis""}}}],""must_not"":[]}},""highlight"":{""pre_tags"":[""@kibana-highlighted-field@""],""post_tags"":[""@/kibana-highlighted-field@""],""fields"":{""*"":{}},""require_field_match"":false,""fragment_size"":2147483647},""_source"":{""excludes"":[]},""aggs"":{""2"":{""date_histogram"":{""field"":""log_time"",""interval"":""3h"",""time_zone"":""Asia/Kolkata"",""min_doc_count"":1}}},""stored_fields"":[""*""],""script_fields"":{},""docvalue_fields"":[""check_in"",""search_date"",""check_out"",""time_stamp"",""pickup_date"",""dropoff_date"",""log_time"",""@timestamp"",""Timestamp"",""start_time"",""lastrun"",""lastsync""]}" + Environment.NewLine;
+
+            return ApiRequestBody;
         }
     }
 }
